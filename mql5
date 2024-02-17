@@ -1,0 +1,84 @@
+
+// The News Trader
+// Developer's site: forexroboteasy.com
+// Development: Forex Robot Easy Team
+
+// Import necessary libraries
+#include <Trade\Trade.mqh>
+#include <Trade\PositionInfo.mqh>
+#include <Trade\TradeConstants.mqh>
+
+// Define input parameters
+input datetime newsReleaseTime = D'2022.01.01 15:00:00';  // Exact news release time
+
+// Define the News Trader class
+class CNewsTrader
+{
+private:
+   CTrade m_trade;  // Trade class object
+
+public:
+   // Constructor
+   CNewsTrader()
+   {
+      // Initialize trade class
+      m_trade.SetExpertMagicNumber(123456);  // Set expert magic number
+   }
+
+   // Function to handle trade execution
+   void TradeExecution()
+   {
+      // Check if it's time for news release
+      if (TimeCurrent() >= newsReleaseTime)
+      {
+         // Place a pending order
+         double price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+         int slippage = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_SLIPPAGE);
+         int deviation = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_DEVIATION);
+         int orderTicket = m_trade.BuyStop(0.01, price + 10 * SymbolInfoDouble(_Symbol, SYMBOL_POINT), price - 10 * SymbolInfoDouble(_Symbol, SYMBOL_POINT), 0, 0, slippage, deviation);
+         if (orderTicket > 0)
+         {
+            Print('Pending order placed successfully. Order ticket: ', orderTicket);
+         }
+         else
+         {
+            Print('Failed to place pending order. Error code: ', m_trade.ResultRetcode());
+         }
+      }
+
+      // Check if there is a pending order
+      if (m_trade.PositionSelect(_Symbol))
+      {
+         // Check if the pending order is activated
+         if (m_trade.PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY_STOP)
+         {
+            // Check for market reaction
+            double currentPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+            double orderPrice = m_trade.PositionGetDouble(POSITION_PRICE_OPEN);
+            double takeProfit = orderPrice + 50 * SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+            double stopLoss = orderPrice - 50 * SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+
+            // Modify the pending order with take profit and stop loss levels
+            bool result = m_trade.PositionModify(orderPrice, takeProfit, stopLoss);
+            if (result)
+            {
+               Print('Pending order modified successfully.');
+            }
+            else
+            {
+               Print('Failed to modify pending order. Error code: ', m_trade.ResultRetcode());
+            }
+         }
+      }
+   }
+};
+
+// Create an instance of the News Trader class
+CNewsTrader newsTrader;
+
+// The start function
+void OnStart()
+{
+   // Call the trade execution function
+   newsTrader.TradeExecution();
+}
